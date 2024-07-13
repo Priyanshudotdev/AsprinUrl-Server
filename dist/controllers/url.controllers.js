@@ -5,6 +5,7 @@ import { imageSync } from 'qr-image';
 import fs from 'fs';
 import { myCache } from "../app.js";
 import { promisify } from 'util';
+import UAParser from "ua-parser-js";
 const writeFileAsync = promisify(fs.writeFile);
 const unlinkAsync = promisify(fs.unlink);
 export const handleGenerateNewShortURL = async (req, res) => {
@@ -125,7 +126,6 @@ export const handleDeleteLink = async (req, res) => {
     try {
         const result = await Url.deleteOne({ urlTitle, createdBy: userId });
         if (result) {
-            console.log(result);
             res.status(200).json({
                 message: "Link Deleted Successfull"
             });
@@ -142,18 +142,41 @@ export const handleDeleteLink = async (req, res) => {
     }
 };
 export const handleRedirection = async (req, res) => {
-    const redirectUrl = req.query;
-    if (!redirectUrl.link)
+    const { link } = req.query;
+    if (!link) {
         return res.status(400).json({
-            message: "redirectUrl Url is Required",
+            message: "redirectUrl is required",
             success: false
         });
-    let link = redirectUrl.link;
-    console.log(link);
+    }
     try {
-        res.redirect(307, link);
+        const shortUrl = await Url.findOne({ shortId: link });
+        if (!shortUrl) {
+            return res.status(404).json({
+                message: "Link not found",
+                success: false
+            });
+        }
+        const parser = new UAParser();
+        const response = parser.getResult();
+        const device = response.device || "desktop";
+        // Fetch location data
+        const locationResponse = await fetch("https://ipapi.co/json");
+        const { city, country_name: country } = await locationResponse.json();
+        // Save visit data
+        shortUrl.visitHistory.push({
+            device: JSON.stringify(device),
+            city,
+            country,
+        });
+        await shortUrl.save();
+        return res.json({ url: shortUrl.redirectUrl });
     }
     catch (error) {
-        console.log(error);
+        console.error(error);
+        res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
     }
 };
