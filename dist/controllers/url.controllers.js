@@ -170,7 +170,7 @@ export const handleRedirection = async (req, res) => {
             country,
         });
         await shortUrl.save();
-        return res.json({ url: shortUrl.redirectUrl });
+        res.redirect(`${shortUrl.redirectUrl}`);
     }
     catch (error) {
         console.error(error);

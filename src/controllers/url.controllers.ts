@@ -225,7 +225,7 @@ export const handleRedirection = async (req: Request, res: Response) => {
 
         await shortUrl.save();
 
-        return res.json({url:shortUrl.redirectUrl})
+        res.redirect(`${shortUrl.redirectUrl}`)
 
 
     } catch (error) {
