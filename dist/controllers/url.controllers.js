@@ -46,6 +46,7 @@ export const handleGenerateNewShortURL = async (req, res) => {
                 success: false
             });
         }
+        console.log(link);
         return res.json({
             link,
             success: true,
@@ -97,9 +98,9 @@ export const handleFetchUserLinks = async (req, res) => {
             message: "User Id is Required",
             success: false
         });
-    let links = [];
-    if (myCache.has(`${userId}`)) {
-        links = JSON.parse(myCache.get(`${userId}`));
+    let links;
+    if (myCache.has(userId)) {
+        links = myCache.get(userId);
     }
     else {
         links = await Url.find({ createdBy: userId });
@@ -108,7 +109,7 @@ export const handleFetchUserLinks = async (req, res) => {
                 message: "Links Not Found",
                 success: false
             });
-        myCache.set(`${userId}`, JSON.stringify(links));
+        myCache.set(userId, links);
     }
     return res.status(200).json({
         links,
@@ -125,13 +126,19 @@ export const handleDeleteLink = async (req, res) => {
         });
     try {
         const result = await Url.deleteOne({ urlTitle, createdBy: userId });
-        if (result) {
+        if (result.deletedCount > 0) {
+            // Invalidate the cache for the user
+            myCache.del(userId);
             res.status(200).json({
-                message: "Link Deleted Successfull"
+                message: "Link Deleted Successfully",
+                success: true
             });
         }
         else {
-            res.status(404).json({ message: "Resource not found" });
+            res.status(404).json({
+                message: "Resource not found",
+                success: false
+            });
         }
     }
     catch (error) {

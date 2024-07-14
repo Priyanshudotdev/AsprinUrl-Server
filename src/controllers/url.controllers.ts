@@ -62,6 +62,8 @@ export const handleGenerateNewShortURL = async (req: CustomRequest, res: Respons
             });
         }
 
+        console.log(link);
+
         return res.json({
             link,
             success: true,
@@ -126,20 +128,20 @@ export const handleFetchUserLinks = async (req:CustomRequest,res:Response) => {
     })
 
 
-    let links = [];
+    let links;
 
-        if(myCache.has(`${userId}`)){
-            links = JSON.parse(myCache.get(`${userId}`) as string );
-        }else{
-            links = await Url.find({createdBy:userId})
+  if (myCache.has(userId)) {
+    links = myCache.get(userId);
+  } else {
+    links = await Url.find({ createdBy: userId });
 
-            if(!links) return res.status(404).json({
-                message: "Links Not Found",
-                success: false
-            })
+    if (!links) return res.status(404).json({
+      message: "Links Not Found",
+      success: false
+    });
 
-            myCache.set(`${userId}`,JSON.stringify(links));
-        }   
+    myCache.set(userId, links);
+  }  
 
 
 
@@ -152,37 +154,40 @@ export const handleFetchUserLinks = async (req:CustomRequest,res:Response) => {
     
 }
 
-export const handleDeleteLink = async(req:CustomRequest,res:Response) => {
-
-    const {urlTitle,userId} = req.query;
-
-
-    if(!urlTitle || !userId ) return res.status(400).json({
-        message: "Url Title & User Id is Required",
-        success: false
-    })
-
+export const handleDeleteLink = async (req:CustomRequest, res:Response) => {
+    const { urlTitle, userId } = req.query;
+  
+    if (!urlTitle || !userId) return res.status(400).json({
+      message: "Url Title & User Id is Required",
+      success: false
+    });
+  
     try {
-        const result = await Url.deleteOne({urlTitle,createdBy:userId});
+      const result = await Url.deleteOne({ urlTitle, createdBy: userId });
+  
+      if (result.deletedCount > 0) {
+        // Invalidate the cache for the user
 
-        if(result){
-
-            res.status(200).json({
-                message: "Link Deleted Successfull"
-            })
-        }else{
-            res.status(404).json({ message: "Resource not found" });
-        }
+        myCache.del(`${userId}`);
+  
+        res.status(200).json({
+          message: "Link Deleted Successfully",
+          success: true
+        });
+      } else {
+        res.status(404).json({ 
+          message: "Resource not found",
+          success: false 
+        });
+      }
     } catch (error) {
-        res.status(500).json({
-            message: "Internal Server Error",
-            success: false
-        })
+      res.status(500).json({
+        message: "Internal Server Error",
+        success: false
+      });
     }
+  };
 
-}
-
-;
 
 export const handleRedirection = async (req: Request, res: Response) => {
     const { link } = req.query;
@@ -208,6 +213,7 @@ export const handleRedirection = async (req: Request, res: Response) => {
         const device = response.device || "desktop"
 
        
+
 
 
         // Fetch location data
@@ -236,3 +242,4 @@ export const handleRedirection = async (req: Request, res: Response) => {
         });
     }
 };
+
